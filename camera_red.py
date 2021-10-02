@@ -11,7 +11,7 @@ from time import sleep, clock_gettime, CLOCK_MONOTONIC
 import picamera.array
 from picamera import PiCamera
 
-sys.path.append("../00_utils/")
+sys.path.append("./00_utils/")
 import hdmi
 import camera
 from fps import FPS

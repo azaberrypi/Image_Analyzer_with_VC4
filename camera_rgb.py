@@ -29,6 +29,8 @@ def mask(idx):
 
 @qpu
 def piadd(asm):
+
+    # ここはC言語のマクロ的な使い方
     IN_ADDR   = 0 #インデックス
     OUT_ADDR  = 1
     IO_ITER   = 2
@@ -38,8 +40,7 @@ def piadd(asm):
     OUT_B_ADDR = 6
     COMPLETED = 0 #セマフォ用
 
-    OUT_COLOR = 0 # 色識別用
-
+    ldi(rb[31], 1) # 色識別用
     
     ldi(null,mask(IN_ADDR),set_flags=True)  # 次の行でr2にuniformの任意の場所を格納するためにzero flagセット
     mov(r2,uniform,cond='zs')
@@ -170,20 +171,20 @@ def piadd(asm):
     """
     ここでホストプログラムに戻らせずに、色の変更をさせたい
     """
-    """
-    ldi(r3, OUT_COLOR)
+    
+    mov(r3, rb[31])
     iadd(null, r3, -1, set_flags=True)
     jzs(L.green)
-    OUT_COLOR = OUT_G_ADDR #nop()
+    ldi(rb[31], OUT_G_ADDR) #nop()
     nop()
     nop()
     
     iadd(null, r3, -5, set_flags=True)
     jzs(L.blue)
-    OUT_COLOR = OUT_B_ADDR #nop()
+    ldi(rb[31], OUT_B_ADDR) #nop()
     nop()
     nop()
-    """
+    
     interrupt()     # qpu1がここにたどり着いたらGPUの処理が終わりでホストプログラムに戻る
     
     L.skip_fin
@@ -261,14 +262,22 @@ with Driver() as drv:
 
             # ヒストグラムを作るための処理
             sum = [0] * SIMD
+            sum_g = [0] * SIMD
+            sum_b = [0] * SIMD
             for i in range(n_threads):
                 for j in range(SIMD):
                     sum[j] += OUT[i][j]
+                    sum_g[j] += OUT_G[i][j]
+                    sum_b[j] += OUT_B[i][j]
             
             for i in range(SIMD):
                 temp = sum[i]
+                temp_g = sum_g[i]
+                temp_b = sum_b[i]
                 for j in range(SIMD-1, i, -1):
                     sum[j] -= temp
+                    sum_g[j] -= temp_g
+                    sum_b[j]
             
             print("ok")
             

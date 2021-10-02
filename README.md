@@ -1,6 +1,10 @@
 # Image_Analyzer_with_VC4
 [セキュリティ・ネクストキャンプ2021 講義N6 低レベルGPUプログラミング](https://www.ipa.go.jp/jinzai/camp/2021/next2021_program_list.html#list_next6)
 
+
+<img src="./histogram_blue_vc4.jpg" width="800px"><br>
+[camera_blue.py](https://github.com/azaberrypi/Image_Analyzer_with_VC4/blob/main/camera_blue.py)の出力映像のスクリーンショット
+
 ## 概要
 Piカメラで取得している画像から、RGBの明度をヒストグラムで表示するプログラムです。<br>
 RaspberryPiに搭載されているGPU、VideoCore® IVで処理させて高速化を図っています。<br>

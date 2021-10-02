@@ -52,6 +52,10 @@ def piadd(asm):
     mov(r2,uniform,cond='zs')
     ldi(null,mask(THR_NM),set_flags=True)
     mov(r2,uniform,cond='zs')
+    ldi(null,mask(OUT_G_ADDR),set_flags=True)
+    mov(r2,uniform,cond='zs')
+    ldi(null,mask(OUT_B_ADDR),set_flags=True)
+    mov(r2,uniform,cond='zs')
     
 
     ldi(r1, 16)    
@@ -118,7 +122,7 @@ def piadd(asm):
         ldi(null, mask(histogram) ,set_flags=True) # r0のhistogram番目にzfを立てる
         for i in range(16): # 16回roop レジスタ1個当たり16要素あるため
             rotate(broadcast, r3, -i, set_flags=False)   # r3のi番目の要素をr5に書き込む
-            iadd(r1, r1, r5, cond='zs', set_flags=False)    
+            iadd(r1, r1, r5, cond='zs', set_flags=False)
 
     ldi(r3,60*16*4)
 
@@ -131,7 +135,7 @@ def piadd(asm):
 
     mutex_acquire() # VPMを触り始める時の命令
 
-    rotate(broadcast, r2, -OUT_ADDR) # OUT_ADDRの先頭アドレスでr5を埋める
+    rotate(broadcast, r2, -rb[31]) # 色別の出力先のアドレスでr5を埋める
     setup_vpm_write(mode='32bit horizontal',Y=0,X=0)
 
     mov(vpm, r1)

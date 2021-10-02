@@ -134,8 +134,26 @@ def piadd(asm):
     nop()    
 
     mutex_acquire() # VPMを触り始める時の命令
+    # rotate の第3引数は即値じゃないとダメみたい
+    
+    # どの値をbroadcastに格納するかを決める
+    if(1):
+        iadd(null, r3, -1, set_flags=True)
+        jzs(L.start_setup_vpm_write)
+        rotate(broadcast, r2, -OUT_ADDR) # OUT_ADDRの先頭アドレスでr5を埋める #nop()
+        nop()
+        nop()
+        
+        iadd(null, r3, -5, set_flags=True)
+        jzs(L.start_setup_vpm_write)
+        rotate(broadcast, r2, -OUT_G_ADDR) # OUT_G_ADDRの先頭アドレスでr5を埋める #nop()
+        nop()
+        nop()
 
-    rotate(broadcast, r2, -rb[31]) # 色別の出力先のアドレスでr5を埋める
+        rotate(broadcast, r2, -OUT_B_ADDR) # OUT_G_ADDRの先頭アドレスでr5を埋める #nop()
+
+    L.start_setup_vpm_write
+
     setup_vpm_write(mode='32bit horizontal',Y=0,X=0)
 
     mov(vpm, r1)

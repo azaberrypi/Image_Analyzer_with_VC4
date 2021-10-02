@@ -52,13 +52,6 @@ def piadd(asm):
     mov(r2,uniform,cond='zs')
     ldi(null,mask(THR_NM),set_flags=True)
     mov(r2,uniform,cond='zs')
-
-    OUT_COLOR = OUT_ADDR
-
-    '''
-    色が変更されたときはここに戻ってきてほしい
-    '''
-    #L.color
     
 
     ldi(r1, 16)    
@@ -277,7 +270,7 @@ with Driver() as drv:
                 for j in range(SIMD-1, i, -1):
                     sum[j] -= temp
                     sum_g[j] -= temp_g
-                    sum_b[j]
+                    sum_b[j] -= temp_b
             
             print("ok")
             

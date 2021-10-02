@@ -229,8 +229,8 @@ with Driver() as drv:
     for th in range(n_threads):
         uniforms[th,0]=IN.address + (th_ele * 4 * th)
         uniforms[th,1]=OUT.addresses()[th,0]
-        uniforms[th,5]=OUT.addresses()[th,0]
-        uniforms[th,6]=OUT.addresses()[th,0]
+        uniforms[th,5]=OUT_G.addresses()[th,0]
+        uniforms[th,6]=OUT_B.addresses()[th,0]
     uniforms[:,2]=int(io_iter)
     uniforms[:,3]=np.arange(1,(n_threads+1))    #[1,2,...,13]
     uniforms[:,4]=n_threads

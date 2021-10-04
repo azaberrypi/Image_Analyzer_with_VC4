@@ -28,7 +28,7 @@ def mask(idx):
     return values
 
 @qpu
-def piadd(asm):
+def histogram_green(asm):
     IN_ADDR   = 0 #インデックス
     OUT_ADDR  = 1
     IO_ITER   = 2
@@ -183,7 +183,7 @@ with Driver() as drv:
     uniforms[:,3]=np.arange(1,(n_threads+1))    #[1,2,...,13]
     uniforms[:,4]=n_threads
 
-    code=drv.program(piadd)
+    code=drv.program(histogram_green)
 
     try:
         fps = FPS()

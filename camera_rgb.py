@@ -89,6 +89,7 @@ def piadd(asm):
     L.get_brightness
     ldi(r1, 0) # r1を明度カウンターとして扱う
     
+    # ここでIO_ITERの初期化
     ldi(null,mask(IO_ITER),set_flags=True)
     mov(r2,uniform,cond='zs')
 
@@ -127,7 +128,7 @@ def piadd(asm):
             rotate(broadcast, r3, -i, set_flags=False)   # r3のi番目の要素をr5に書き込む
             iadd(r1, r1, r5, cond='zs', set_flags=False)
 
-    ldi(r3,60*16*4)
+    #ldi(r3,60*16*4)    # これが適切に使われていない。TODO:なぜか調べる。
 
     ldi(null,mask(IO_ITER),set_flags=True) # 次の行のためにzfを立てる
     isub(r2,r2,4,cond='zs') #r2の中のIO_ITER（転送回数）にのみ、4を引いてr2に格納 NOTFIXME
@@ -141,6 +142,7 @@ def piadd(asm):
     
     # どの値をbroadcastに格納するかを決める
     if(1):
+        mov(r3, rb[31])     # ここでr3の初期化
         iadd(null, r3, -1, set_flags=True)
         jzs(L.start_setup_vpm_write)
         rotate(broadcast, r2, -OUT_ADDR) # OUT_ADDRの先頭アドレスでr5を埋める #nop()

@@ -46,8 +46,8 @@ def piadd(asm):
     mov(r2,uniform,cond='zs')
     ldi(null,mask(OUT_ADDR),set_flags=True)
     mov(r2,uniform,cond='zs')
-    ldi(null,mask(IO_ITER),set_flags=True)
-    mov(r2,uniform,cond='zs')
+    #ldi(null,mask(IO_ITER),set_flags=True)
+    #mov(r2,uniform,cond='zs')
     ldi(null,mask(THR_ID),set_flags=True)
     mov(r2,uniform,cond='zs')
     ldi(null,mask(THR_NM),set_flags=True)
@@ -88,6 +88,9 @@ def piadd(asm):
 
     L.get_brightness
     ldi(r1, 0) # r1を明度カウンターとして扱う
+    
+    ldi(null,mask(IO_ITER),set_flags=True)
+    mov(r2,uniform,cond='zs')
 
     L.loop
 
@@ -164,7 +167,22 @@ def piadd(asm):
 
     mutex_release()
 
-
+    """
+    ここでホストプログラムに戻る処理をせずに、色の変更をさせたい
+    """
+    
+    mov(r3, rb[31])
+    iadd(null, r3, -1, set_flags=True)
+    jzs(L.green)
+    ldi(rb[31], OUT_G_ADDR) #nop()
+    nop()
+    nop()
+    
+    iadd(null, r3, -5, set_flags=True)
+    jzs(L.blue)
+    ldi(rb[31], OUT_B_ADDR) #nop()
+    nop()
+    nop()
 
 
 #====semaphore=====    
@@ -182,23 +200,6 @@ def piadd(asm):
     sema_down(COMPLETED)    # 他のスレッドが終了するまで待つ
     nop()
     iadd(r0, r0, -1)    # ここのフラグでjzc(L.sem_down)の判定がされる
-    
-    """
-    ここでホストプログラムに戻らせずに、色の変更をさせたい
-    """
-    
-    mov(r3, rb[31])
-    iadd(null, r3, -1, set_flags=True)
-    jzs(L.green)
-    ldi(rb[31], OUT_G_ADDR) #nop()
-    nop()
-    nop()
-    
-    iadd(null, r3, -5, set_flags=True)
-    jzs(L.blue)
-    ldi(rb[31], OUT_B_ADDR) #nop()
-    nop()
-    nop()
     
     interrupt()     # qpu1がここにたどり着いたらGPUの処理が終わりでホストプログラムに戻る
     
@@ -247,6 +248,7 @@ with Driver() as drv:
     OUT_B = drv.alloc((n_threads,16),'uint32')
     OUT_B[:] = 0.0
 
+    # ここで既にスレッドごとに処理する部分を分けている
     uniforms=drv.alloc((n_threads,7),'uint32')
     for th in range(n_threads):
         uniforms[th,0]=IN.address + (th_ele * 4 * th)

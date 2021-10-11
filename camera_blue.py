@@ -92,8 +92,6 @@ def histogram_blue(asm):
             rotate(broadcast, r3, -i, set_flags=False)   # r3のi番目の要素をr5に書き込む
             iadd(r1, r1, r5, cond='zs', set_flags=False)    
 
-    ldi(r3,60*16*4)
-
     ldi(null,mask(IO_ITER),set_flags=True) # 次の行のためにzfを立てる
     isub(r2,r2,4,cond='zs') #r2の中のIO_ITER（転送回数）にのみ、4を引いてr2に格納 NOTFIXME
     jzc(L.loop)     # Jump if Z-flags are clear, r2がゼロじゃない

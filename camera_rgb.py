@@ -28,7 +28,7 @@ def mask(idx):
     return values
 
 @qpu
-def piadd(asm):
+def histogram_rgb(asm):
 
     # ここはC言語のマクロ的な使い方
     IN_ADDR   = 0 #インデックス
@@ -41,7 +41,7 @@ def piadd(asm):
     COMPLETED = 0 #セマフォ用
 
     ldi(rb[31], 1) # 色識別用
-    
+
     ldi(null,mask(IN_ADDR),set_flags=True)  # 次の行でr2にuniformの任意の場所を格納するためにzero flagセット
     mov(r2,uniform,cond='zs')
     ldi(null,mask(OUT_ADDR),set_flags=True)
@@ -56,9 +56,9 @@ def piadd(asm):
     mov(r2,uniform,cond='zs')
     ldi(null,mask(OUT_B_ADDR),set_flags=True)
     mov(r2,uniform,cond='zs')
-    
 
-    ldi(r1, 16)    
+
+    ldi(r1, 16)
     imul24(r3,element_number,r1)   # 24bitの掛け算 第3引数を4→16にすることで、Rの値のみがとれる [0,16,32,48,64...,240]
     rotate(broadcast,r2,-IN_ADDR) # rotate と broadcast のあわせ技!! GPU本p47 r5に格納
     iadd(r0,r5,r3)  # integer add    # これでin_addrを先頭とした16要素=64bytesのアドレスが格納される
@@ -78,7 +78,7 @@ def piadd(asm):
     nop()
     nop()
 
-    L.blue    
+    L.blue
     ldi(r1, 16)
     imul24(r3,element_number,r1)   # 24bitの掛け算 第3引数を4→16にすることで、Rの値のみがとれる [0,16,32,48,64...,240]
     iadd(r3, r3, 8)     # これでBの値のみがとれる[8,24,40,56,72,...,248]
@@ -88,7 +88,7 @@ def piadd(asm):
 
     L.get_brightness
     ldi(r1, 0) # r1を明度カウンターとして扱う
-    
+
     # ここでIO_ITERの初期化
     ldi(null,mask(IO_ITER),set_flags=True)
     mov(r2,uniform,cond='zs')
@@ -133,20 +133,20 @@ def piadd(asm):
     jzc(L.loop)     # Jump if Z-flags are clear, r2がゼロじゃない
     nop()
     nop()
-    nop()    
+    nop()
 
     mutex_acquire() # VPMを触り始める時の命令
     # rotate の第3引数は即値じゃないとダメみたい
-    
+
     # どの値をbroadcastに格納するかを決める
     if(1):
-        mov(r3, rb[31])     # ここでr3の初期化
+        mov(r3, rb[31])     # r3の初期化
         iadd(null, r3, -1, set_flags=True)
         jzs(L.start_setup_vpm_write)
         rotate(broadcast, r2, -OUT_ADDR) # OUT_ADDRの先頭アドレスでr5を埋める #nop()
         nop()
         nop()
-        
+
         iadd(null, r3, -5, set_flags=True)
         jzs(L.start_setup_vpm_write)
         rotate(broadcast, r2, -OUT_G_ADDR) # OUT_G_ADDRの先頭アドレスでr5を埋める #nop()
@@ -170,14 +170,14 @@ def piadd(asm):
     """
     ここでホストプログラムに戻る処理をせずに、色の変更をさせたい
     """
-    
+
     mov(r3, rb[31])
     iadd(null, r3, -1, set_flags=True)
     jzs(L.green)
     ldi(rb[31], OUT_G_ADDR) #nop()
     nop()
     nop()
-    
+
     iadd(null, r3, -5, set_flags=True)
     jzs(L.blue)
     ldi(rb[31], OUT_B_ADDR) #nop()
@@ -185,7 +185,7 @@ def piadd(asm):
     nop()
 
 
-#====semaphore=====    
+#====semaphore=====
     sema_up(COMPLETED)  # それぞれのqpuが、処理が終わったらここに来てセマフォをあげる
     rotate(broadcast,r2,-THR_ID)    # r2の3番目の値でr5を埋める
     iadd(null,r5,-1,set_flags=True)
@@ -200,17 +200,17 @@ def piadd(asm):
     sema_down(COMPLETED)    # 他のスレッドが終了するまで待つ
     nop()
     iadd(r0, r0, -1)    # ここのフラグでjzc(L.sem_down)の判定がされる
-    
+
     interrupt()     # qpu1がここにたどり着いたらGPUの処理が終わりでホストプログラムに戻る
-    
+
     L.skip_fin
-    
+
     exit(interrupt=False)   # 他のqpuの処理が終わらないようにFalse
 
 
-    
+
 with Driver() as drv:
-    
+
     DISPLAY_W, DISPLAY_H = hdmi.getResolution()
     WINDOW_W = DISPLAY_W // 3  # ディスプレイを3分割
     #WINDOW_H = DISPLAY_H
@@ -218,7 +218,7 @@ with Driver() as drv:
     # 画像サイズ
     H=360
     W=320
-    
+
     # cameraセットアップ
     cam = camera.setCamera(320, 368)
     cam.framerate = 30
@@ -259,7 +259,7 @@ with Driver() as drv:
     uniforms[:,3]=np.arange(1,(n_threads+1))    #[1,2,...,13]
     uniforms[:,4]=n_threads
 
-    code=drv.program(piadd)
+    code=drv.program(histogram_rgb)
 
     try:
         fps = FPS()
@@ -286,7 +286,7 @@ with Driver() as drv:
                     sum[j] += OUT[i][j]
                     sum_g[j] += OUT_G[i][j]
                     sum_b[j] += OUT_B[i][j]
-            
+
             for i in range(SIMD):
                 temp = sum[i]
                 temp_g = sum_g[i]
@@ -295,34 +295,34 @@ with Driver() as drv:
                     sum[j] -= temp
                     sum_g[j] -= temp_g
                     sum_b[j] -= temp_b
-            
+
             print("ok")
-            
+
 
             draw_img = Image.new('RGB', (WINDOW_W, H), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
-            
+
             hdmi.addText(draw_img, *(10, 32 * 0), "Raspberry Pi")   # draw_img上での位置
             hdmi.addColoredText(draw_img, *(10, 32 * 1), "VideoCore IV", "red")
 
             hdmi.addText(draw_img, *(10, 32 * 3), f'{H}x{W}')
-            
+
             hdmi.addText(draw_img, *(10, 32 * 5), "Histogram")
             hdmi.addText(draw_img, *(10, 32 * 6), "in 16 levels")
 
             hdmi.addText(draw_img, *(10, 32 * 8), f'{fps.update():.3f} FPS')
-            
+
 
             draw_img = draw_img.convert('RGB')
             overlay_dstimg.OnOverlayUpdated(draw_img, format='rgb', fullscreen=False, window=(WINDOW_W*2, 0, WINDOW_W*2, H*2))
 
-            
+
 
             histogram_img = Image.new('RGB', (WINDOW_W, H*2), 0)    # 第二引数で大きさを指定
-            
+
             # ヒストグラム各要素に対してRectangleを作る
             for i in range(16):
                 hdmi.printColoredRectangle(histogram_img, "red", i*(WINDOW_W/16), H*2 - (sum[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
-            
+
             overlay_dstimg1.OnOverlayUpdated(histogram_img, format='rgb', fullscreen=False, window=(WINDOW_W, 0, WINDOW_W, H*2))
 
 

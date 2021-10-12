@@ -249,15 +249,17 @@ with Driver() as drv:
     OUT_B[:] = 0.0
 
     # ここで既にスレッドごとに処理する部分を分けている
-    uniforms=drv.alloc((n_threads,7),'uint32')
+    uniforms=drv.alloc((n_threads,9),'uint32')
     for th in range(n_threads):
         uniforms[th,0]=IN.address + (th_ele * 4 * th)
         uniforms[th,1]=OUT.addresses()[th,0]
-        uniforms[th,5]=OUT_G.addresses()[th,0]
-        uniforms[th,6]=OUT_B.addresses()[th,0]
-    uniforms[:,2]=int(io_iter)
-    uniforms[:,3]=np.arange(1,(n_threads+1))    #[1,2,...,13]
-    uniforms[:,4]=n_threads
+        uniforms[th,4]=OUT_G.addresses()[th,0]
+        uniforms[th,5]=OUT_B.addresses()[th,0]
+    uniforms[:,2]=np.arange(1,(n_threads+1))    #[1,2,...,13]
+    uniforms[:,3]=n_threads
+    uniforms[:,6]=int(io_iter)
+    uniforms[:,7]=int(io_iter)
+    uniforms[:,8]=int(io_iter)
 
     code=drv.program(histogram_rgb)
 
@@ -296,7 +298,7 @@ with Driver() as drv:
                     sum_g[j] -= temp_g
                     sum_b[j] -= temp_b
 
-            print("ok")
+            #print("ok")    # for debug
 
 
             draw_img = Image.new('RGB', (WINDOW_W, H), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
@@ -318,6 +320,8 @@ with Driver() as drv:
 
 
             histogram_img = Image.new('RGB', (WINDOW_W, H*2), 0)    # 第二引数で大きさを指定
+            #histogram_green_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
+            #histogram_blue_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
 
             # ヒストグラム各要素に対してRectangleを作る
             for i in range(16):

@@ -36,7 +36,7 @@ def histogram_green(asm):
     THR_NM    = 4
     COMPLETED = 0 #セマフォ用
 
-    
+
     ldi(null,mask(IN_ADDR),set_flags=True)  # 次の行でr2にuniformの任意の場所を格納するためにzero flagセット
     mov(r2,uniform,cond='zs')
     ldi(null,mask(OUT_ADDR),set_flags=True)
@@ -90,14 +90,14 @@ def histogram_green(asm):
         ldi(null, mask(histogram) ,set_flags=True) # r0のhistogram番目にzfを立てる
         for i in range(16): # 16回roop レジスタ1個当たり16要素あるため
             rotate(broadcast, r3, -i, set_flags=False)   # r3のi番目の要素をr5に書き込む
-            iadd(r1, r1, r5, cond='zs', set_flags=False)    
+            iadd(r1, r1, r5, cond='zs', set_flags=False)
 
     ldi(null,mask(IO_ITER),set_flags=True) # 次の行のためにzfを立てる
     isub(r2,r2,4,cond='zs') #r2の中のIO_ITER（転送回数）にのみ、4を引いてr2に格納 NOTFIXME
     jzc(L.loop)     # Jump if Z-flags are clear, r2がゼロじゃない
     nop()
     nop()
-    nop()    
+    nop()
 
     mutex_acquire() # VPMを触り始める時の命令
 
@@ -115,7 +115,7 @@ def histogram_green(asm):
 
 
 
-#====semaphore=====    
+#====semaphore=====
     sema_up(COMPLETED)  # それぞれのqpuが、処理が終わったらここに来てセマフォをあげる
     rotate(broadcast,r2,-THR_ID)    # r2の3番目の値でr5を埋める
     iadd(null,r5,-1,set_flags=True)
@@ -130,16 +130,16 @@ def histogram_green(asm):
     sema_down(COMPLETED)    # 他のスレッドが終了するまで待つ
     nop()
     iadd(r0, r0, -1)    # ここのフラグでjzc(L.sem_down)の判定がされる
-    
+
     interrupt()     # qpu1がここにたどり着いたらGPUの処理が終わりでホストプログラムに戻る
-    
+
     L.skip_fin
-    
+
     exit(interrupt=False)   # 他のqpuの処理が終わらないようにFalse
 
-    
+
 with Driver() as drv:
-    
+
     DISPLAY_W, DISPLAY_H = hdmi.getResolution()
     WINDOW_W = DISPLAY_W // 3  # ディスプレイを3分割
     #WINDOW_H = DISPLAY_H
@@ -147,7 +147,7 @@ with Driver() as drv:
     # 画像サイズ
     H=360
     W=320
-    
+
     # cameraセットアップ
     cam = camera.setCamera(320, 368)
     cam.framerate = 30
@@ -204,37 +204,37 @@ with Driver() as drv:
             for i in range(n_threads):
                 for j in range(SIMD):
                     sum[j] += OUT[i][j]
-            
+
             for i in range(SIMD):
                 temp = sum[i]
                 for j in range(SIMD-1, i, -1):
                     sum[j] -= temp
-            
+
 
             draw_img = Image.new('RGB', (WINDOW_W, H), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
-            
+
             hdmi.addText(draw_img, *(10, 32 * 0), "Raspberry Pi")   # draw_img上での位置
             hdmi.addColoredText(draw_img, *(10, 32 * 1), "VideoCore IV", "green")
 
             hdmi.addText(draw_img, *(10, 32 * 3), f'{H}x{W}')
-            
+
             hdmi.addText(draw_img, *(10, 32 * 5), "Histogram")
             hdmi.addText(draw_img, *(10, 32 * 6), "in 16 levels")
 
             hdmi.addText(draw_img, *(10, 32 * 8), f'{fps.update():.3f} FPS')
-            
+
 
             draw_img = draw_img.convert('RGB')
             overlay_dstimg.OnOverlayUpdated(draw_img, format='rgb', fullscreen=False, window=(WINDOW_W*2, 0, WINDOW_W*2, H*2))
 
-            
+
 
             histogram_img = Image.new('RGB', (WINDOW_W, H*2), 0)    # 第二引数で大きさを指定
-            
+
             # ヒストグラム各要素に対してRectangleを作る
             for i in range(16):
                 hdmi.printColoredRectangle(histogram_img, "green", i*(WINDOW_W/16), H*2 - (sum[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
-            
+
             overlay_dstimg1.OnOverlayUpdated(histogram_img, format='rgb', fullscreen=False, window=(WINDOW_W, 0, WINDOW_W, H*2))
 
 

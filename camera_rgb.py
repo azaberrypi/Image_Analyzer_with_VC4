@@ -224,7 +224,9 @@ with Driver() as drv:
     cam.framerate = 30
     overlay_dstimg = camera.PiCameraOverlay(cam, 3)
     overlay_dstimg1 = camera.PiCameraOverlay(cam, 4)
-    cam.start_preview(fullscreen=False, window=(0, 0, WINDOW_W, H*2))    # window:始点x,始点y,サイズx,サイズy
+    overlay_dstimg2 = camera.PiCameraOverlay(cam, 5)
+    overlay_dstimg3 = camera.PiCameraOverlay(cam, 6)
+    #cam.start_preview(fullscreen=False, window=(0, 0, WINDOW_W, H*2))    # window:始点x,始点y,サイズx,サイズy      # 入力画像を画面描画している
 
     # 画面のクリア
     back_img = Image.new('RGBA', (DISPLAY_W, DISPLAY_H), 0)
@@ -301,34 +303,38 @@ with Driver() as drv:
             #print("ok")    # for debug
 
 
-            draw_img = Image.new('RGB', (WINDOW_W, H), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
+            draw_img = Image.new('RGB', (DISPLAY_W, DISPLAY_H - H*2), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
 
-            hdmi.addText(draw_img, *(10, 32 * 0), "Raspberry Pi")   # draw_img上での位置
-            hdmi.addColoredText(draw_img, *(10, 32 * 1), "VideoCore IV", "red")
+            hdmi.addText(draw_img, *(0, 32 * 0 + 10), "Raspberry Pi")   # draw_img上での位置
+            hdmi.addColoredText(draw_img, *(10, 32 * 1 + 10), "VideoCore IV", "red")
 
-            hdmi.addText(draw_img, *(10, 32 * 3), f'{H}x{W}')
+            hdmi.addText(draw_img, *(0, 32 * 3 + 10), f'{H}x{W}')
 
-            hdmi.addText(draw_img, *(10, 32 * 5), "Histogram")
-            hdmi.addText(draw_img, *(10, 32 * 6), "in 16 levels")
+            hdmi.addText(draw_img, *(0, 32 * 5 + 10), "Histogram")
+            hdmi.addText(draw_img, *(0, 32 * 6 + 10), "in 16 levels")
 
-            hdmi.addText(draw_img, *(10, 32 * 8), f'{fps.update():.3f} FPS')
+            hdmi.addText(draw_img, *(0, 32 * 8 + 10), f'{fps.update():.3f} FPS')
 
 
             draw_img = draw_img.convert('RGB')
-            overlay_dstimg.OnOverlayUpdated(draw_img, format='rgb', fullscreen=False, window=(WINDOW_W*2, 0, WINDOW_W*2, H*2))
+            overlay_dstimg.OnOverlayUpdated(draw_img, format='rgb', fullscreen=False, window=(0, H*2, DISPLAY_W, DISPLAY_H - H*2))
 
 
 
             histogram_img = Image.new('RGB', (WINDOW_W, H*2), 0)    # 第二引数で大きさを指定
-            #histogram_green_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
-            #histogram_blue_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
+            histogram_green_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
+            histogram_blue_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
 
             # ヒストグラム各要素に対してRectangleを作る
             for i in range(16):
                 hdmi.printColoredRectangle(histogram_img, "red", i*(WINDOW_W/16), H*2 - (sum[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
+                hdmi.printColoredRectangle(histogram_green_img, "green", i*(WINDOW_W/16), H*2 - (sum_g[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
+                hdmi.printColoredRectangle(histogram_blue_img, "blue", i*(WINDOW_W/16), H*2 - (sum_b[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
 
-            overlay_dstimg1.OnOverlayUpdated(histogram_img, format='rgb', fullscreen=False, window=(WINDOW_W, 0, WINDOW_W, H*2))
 
+            overlay_dstimg1.OnOverlayUpdated(histogram_img, format='rgb', fullscreen=False, window=(0, 0, WINDOW_W, H*2))
+            overlay_dstimg2.OnOverlayUpdated(histogram_green_img, format='rgb', fullscreen=False, window=(WINDOW_W, 0, WINDOW_W, H*2))
+            overlay_dstimg3.OnOverlayUpdated(histogram_blue_img, format='rgb', fullscreen=False, window=(WINDOW_W*2, 0, WINDOW_W, H*2))
 
     except KeyboardInterrupt:
         # Ctrl-C を捕まえた！

@@ -306,7 +306,7 @@ with Driver() as drv:
             draw_img = Image.new('RGB', (DISPLAY_W, DISPLAY_H - H*2), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
 
             hdmi.addText_64(draw_img, *(0, 64 * 0 + 20), "Raspberry Pi")   # draw_img上での位置
-            hdmi.addColoredText_64(draw_img, *(550, 64 * 0 + 20), "VideoCore IV", "red")
+            hdmi.addText_64(draw_img, *(550, 64 * 0 + 20), "VideoCore IV",)
 
             hdmi.addText_64(draw_img, *(0, 64 * 2 + 20), f'{H}x{W}')
 

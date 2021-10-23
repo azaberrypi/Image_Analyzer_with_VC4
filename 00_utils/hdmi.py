@@ -35,9 +35,19 @@ def addText(pil_img, x, y, str):
     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 32)
     draw.text((x, y), str, font=font, fill=(255,255,255))   # 第一引数はテキストの位置
 
+def addText_64(pil_img, x, y, str):
+    draw = ImageDraw.Draw(pil_img)# im上のImageDrawインスタンスを作る
+    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 64)
+    draw.text((x, y), str, font=font, fill=(255,255,255))   # 第一引数はテキストの位置
+
 def addColoredText(pil_img, x, y, str, color_):
     draw = ImageDraw.Draw(pil_img)# im上のImageDrawインスタンスを作る
     font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 32)
+    draw.text((x, y), str, font=font, fill=color_)
+
+def addColoredText_64(pil_img, x, y, str, color_):
+    draw = ImageDraw.Draw(pil_img)# im上のImageDrawインスタンスを作る
+    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf", 64)
     draw.text((x, y), str, font=font, fill=color_)
 
 def printColoredRectangle(pil_img, color_, x1, y1, x2, y2):

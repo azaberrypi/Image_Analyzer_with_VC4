@@ -28,34 +28,70 @@ def mask(idx):
     return values
 
 @qpu
-def histogram_green(asm):
+def histogram_rgb(asm):
+
+    # ここはC言語のマクロ的な使い方
     IN_ADDR   = 0 #インデックス
     OUT_ADDR  = 1
     IO_ITER   = 2
     THR_ID    = 3
     THR_NM    = 4
+    OUT_G_ADDR = 5
+    OUT_B_ADDR = 6
     COMPLETED = 0 #セマフォ用
 
+    ldi(rb[31], 1) # 色識別用
 
     ldi(null,mask(IN_ADDR),set_flags=True)  # 次の行でr2にuniformの任意の場所を格納するためにzero flagセット
     mov(r2,uniform,cond='zs')
     ldi(null,mask(OUT_ADDR),set_flags=True)
     mov(r2,uniform,cond='zs')
-    ldi(null,mask(IO_ITER),set_flags=True)
-    mov(r2,uniform,cond='zs')
+    #ldi(null,mask(IO_ITER),set_flags=True)
+    #mov(r2,uniform,cond='zs')
     ldi(null,mask(THR_ID),set_flags=True)
     mov(r2,uniform,cond='zs')
     ldi(null,mask(THR_NM),set_flags=True)
     mov(r2,uniform,cond='zs')
+    ldi(null,mask(OUT_G_ADDR),set_flags=True)
+    mov(r2,uniform,cond='zs')
+    ldi(null,mask(OUT_B_ADDR),set_flags=True)
+    mov(r2,uniform,cond='zs')
+
 
     ldi(r1, 16)
+    imul24(r3,element_number,r1)   # 24bitの掛け算 第3引数を4→16にすることで、Rの値のみがとれる [0,16,32,48,64...,240]
+    rotate(broadcast,r2,-IN_ADDR) # rotate と broadcast のあわせ技!! GPU本p47 r5に格納
+    iadd(r0,r5,r3)  # integer add    # これでin_addrを先頭とした16要素=64bytesのアドレスが格納される
+    jmp(L.get_brightness)
+    nop()
+    nop()
+    nop()
 
+    L.green
+    ldi(r1, 16)
     imul24(r3,element_number,r1)   # 24bitの掛け算 第3引数を4→16にすることで、Rの値のみがとれる [0,16,32,48,64...,240]
     iadd(r3, r3, 4)     # これでGの値のみがとれる [4,20,36,52,68...,244]
     rotate(broadcast,r2,-IN_ADDR) # rotate と broadcast のあわせ技!! GPU本p47 r5に格納
     iadd(r0,r5,r3)  # integer add    # これでin_addrを先頭とした16要素=64bytesのアドレスが格納される
+    jmp(L.get_brightness)
+    nop()
+    nop()
+    nop()
 
+    L.blue
+    ldi(r1, 16)
+    imul24(r3,element_number,r1)   # 24bitの掛け算 第3引数を4→16にすることで、Rの値のみがとれる [0,16,32,48,64...,240]
+    iadd(r3, r3, 8)     # これでBの値のみがとれる[8,24,40,56,72,...,248]
+    rotate(broadcast,r2,-IN_ADDR) # rotate と broadcast のあわせ技!! GPU本p47 r5に格納
+    iadd(r0,r5,r3)  # integer add    # これでin_addrを先頭とした16要素=64bytesのアドレスが格納される
+
+
+    L.get_brightness
     ldi(r1, 0) # r1を明度カウンターとして扱う
+
+    # ここでIO_ITERの初期化
+    ldi(null,mask(IO_ITER),set_flags=True)
+    mov(r2,uniform,cond='zs')
 
     L.loop
 
@@ -100,8 +136,27 @@ def histogram_green(asm):
     nop()
 
     mutex_acquire() # VPMを触り始める時の命令
+    # rotate の第3引数は即値じゃないとダメみたい
 
-    rotate(broadcast, r2, -OUT_ADDR) # OUT_ADDRの先頭アドレスでr5を埋める
+    # どの値をbroadcastに格納するかを決める
+    if(1):
+        mov(r3, rb[31])     # r3の初期化
+        iadd(null, r3, -1, set_flags=True)
+        jzs(L.start_setup_vpm_write)
+        rotate(broadcast, r2, -OUT_ADDR) # OUT_ADDRの先頭アドレスでr5を埋める #nop()
+        nop()
+        nop()
+
+        iadd(null, r3, -5, set_flags=True)
+        jzs(L.start_setup_vpm_write)
+        rotate(broadcast, r2, -OUT_G_ADDR) # OUT_G_ADDRの先頭アドレスでr5を埋める #nop()
+        nop()
+        nop()
+
+        rotate(broadcast, r2, -OUT_B_ADDR) # OUT_G_ADDRの先頭アドレスでr5を埋める #nop()
+
+    L.start_setup_vpm_write
+
     setup_vpm_write(mode='32bit horizontal',Y=0,X=0)
 
     mov(vpm, r1)
@@ -112,7 +167,22 @@ def histogram_green(asm):
 
     mutex_release()
 
+    """
+    ここでホストプログラムに戻る処理をせずに、色の変更をさせたい
+    """
 
+    mov(r3, rb[31])
+    iadd(null, r3, -1, set_flags=True)
+    jzs(L.green)
+    ldi(rb[31], OUT_G_ADDR) #nop()
+    nop()
+    nop()
+
+    iadd(null, r3, -5, set_flags=True)
+    jzs(L.blue)
+    ldi(rb[31], OUT_B_ADDR) #nop()
+    nop()
+    nop()
 
 
 #====semaphore=====
@@ -126,7 +196,7 @@ def histogram_green(asm):
     rotate(broadcast,r2,-THR_NM)    # r2の4番目の値でr5を埋める
     iadd(r0, r5, -1,set_flags=True)
     L.sem_down
-    jzc(L.sem_down)
+    jzc(L.sem_down) # zero flag clear
     sema_down(COMPLETED)    # 他のスレッドが終了するまで待つ
     nop()
     iadd(r0, r0, -1)    # ここのフラグでjzc(L.sem_down)の判定がされる
@@ -136,6 +206,7 @@ def histogram_green(asm):
     L.skip_fin
 
     exit(interrupt=False)   # 他のqpuの処理が終わらないようにFalse
+
 
 
 with Driver() as drv:
@@ -153,7 +224,9 @@ with Driver() as drv:
     cam.framerate = 30
     overlay_dstimg = camera.PiCameraOverlay(cam, 3)
     overlay_dstimg1 = camera.PiCameraOverlay(cam, 4)
-    cam.start_preview(fullscreen=False, window=(0, 0, WINDOW_W, H*2))    # window:始点x,始点y,サイズx,サイズy
+    overlay_dstimg2 = camera.PiCameraOverlay(cam, 5)
+    overlay_dstimg3 = camera.PiCameraOverlay(cam, 6)
+    #cam.start_preview(fullscreen=False, window=(0, 0, WINDOW_W, H*2))    # window:始点x,始点y,サイズx,サイズy      # 入力画像を画面描画している
 
     # 画面のクリア
     back_img = Image.new('RGBA', (DISPLAY_W, DISPLAY_H), 0)
@@ -172,16 +245,25 @@ with Driver() as drv:
     IN  = drv.alloc((H,W,4),'uint32')
     OUT = drv.alloc((n_threads,16),'uint32')
     OUT[:] = 0.0
+    OUT_G = drv.alloc((n_threads,16),'uint32')
+    OUT_G[:] = 0.0
+    OUT_B = drv.alloc((n_threads,16),'uint32')
+    OUT_B[:] = 0.0
 
-    uniforms=drv.alloc((n_threads,5),'uint32')
+    # ここで既にスレッドごとに処理する部分を分けている
+    uniforms=drv.alloc((n_threads,9),'uint32')
     for th in range(n_threads):
         uniforms[th,0]=IN.address + (th_ele * 4 * th)
         uniforms[th,1]=OUT.addresses()[th,0]
-    uniforms[:,2]=int(io_iter)
-    uniforms[:,3]=np.arange(1,(n_threads+1))    #[1,2,...,13]
-    uniforms[:,4]=n_threads
+        uniforms[th,4]=OUT_G.addresses()[th,0]
+        uniforms[th,5]=OUT_B.addresses()[th,0]
+    uniforms[:,2]=np.arange(1,(n_threads+1))    #[1,2,...,13]
+    uniforms[:,3]=n_threads
+    uniforms[:,6]=int(io_iter)
+    uniforms[:,7]=int(io_iter)
+    uniforms[:,8]=int(io_iter)
 
-    code=drv.program(histogram_green)
+    code=drv.program(histogram_rgb)
 
     try:
         fps = FPS()
@@ -201,42 +283,58 @@ with Driver() as drv:
 
             # ヒストグラムを作るための処理
             sum = [0] * SIMD
+            sum_g = [0] * SIMD
+            sum_b = [0] * SIMD
             for i in range(n_threads):
                 for j in range(SIMD):
                     sum[j] += OUT[i][j]
+                    sum_g[j] += OUT_G[i][j]
+                    sum_b[j] += OUT_B[i][j]
 
             for i in range(SIMD):
                 temp = sum[i]
+                temp_g = sum_g[i]
+                temp_b = sum_b[i]
                 for j in range(SIMD-1, i, -1):
                     sum[j] -= temp
+                    sum_g[j] -= temp_g
+                    sum_b[j] -= temp_b
+
+            #print("ok")    # for debug
 
 
-            draw_img = Image.new('RGB', (WINDOW_W, H), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
+            draw_img = Image.new('RGB', (DISPLAY_W, DISPLAY_H - H*2), 0)    # NOTE:alpha値にも拡張したいときはRGBAにする   # 第二引数はサイズ
 
-            hdmi.addText(draw_img, *(10, 32 * 0), "Raspberry Pi")   # draw_img上での位置
-            hdmi.addColoredText(draw_img, *(10, 32 * 1), "VideoCore IV", "green")
+            hdmi.addText_64(draw_img, *(0, 64 * 0 + 20), "Raspberry Pi")   # draw_img上での位置
+            hdmi.addColoredText_64(draw_img, *(550, 64 * 0 + 20), "VideoCore IV", "red")
 
-            hdmi.addText(draw_img, *(10, 32 * 3), f'{H}x{W}')
+            hdmi.addText_64(draw_img, *(0, 64 * 2 + 20), f'{H}x{W}')
 
-            hdmi.addText(draw_img, *(10, 32 * 5), "Histogram")
-            hdmi.addText(draw_img, *(10, 32 * 6), "in 16 levels")
+            hdmi.addText_64(draw_img, *(0, 64 * 4 + 20), "Histogram")
+            hdmi.addText_64(draw_img, *(400, 64 * 4 + 20), "in 16 levels")
 
-            hdmi.addText(draw_img, *(10, 32 * 8), f'{fps.update():.3f} FPS')
+            hdmi.addText_64(draw_img, *(0, 64 * 6 + 20), f'{fps.update():.3f} FPS')
 
 
             draw_img = draw_img.convert('RGB')
-            overlay_dstimg.OnOverlayUpdated(draw_img, format='rgb', fullscreen=False, window=(WINDOW_W*2, 0, WINDOW_W*2, H*2))
+            overlay_dstimg.OnOverlayUpdated(draw_img, format='rgb', fullscreen=False, window=(0, H*2, DISPLAY_W, DISPLAY_H - H*2))
 
 
 
             histogram_img = Image.new('RGB', (WINDOW_W, H*2), 0)    # 第二引数で大きさを指定
+            histogram_green_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
+            histogram_blue_img = Image.new('RGB', (WINDOW_W, H*2) ,0)
 
             # ヒストグラム各要素に対してRectangleを作る
             for i in range(16):
-                hdmi.printColoredRectangle(histogram_img, "green", i*(WINDOW_W/16), H*2 - (sum[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
+                hdmi.printColoredRectangle(histogram_img, "red", i*(WINDOW_W/16), H*2 - (sum[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
+                hdmi.printColoredRectangle(histogram_green_img, "green", i*(WINDOW_W/16), H*2 - (sum_g[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
+                hdmi.printColoredRectangle(histogram_blue_img, "blue", i*(WINDOW_W/16), H*2 - (sum_b[i] * (H*2 / 115200)), (i+1)*(WINDOW_W/16), H*2)    # 第2~引数で位置を指定
 
-            overlay_dstimg1.OnOverlayUpdated(histogram_img, format='rgb', fullscreen=False, window=(WINDOW_W, 0, WINDOW_W, H*2))
 
+            overlay_dstimg1.OnOverlayUpdated(histogram_img, format='rgb', fullscreen=False, window=(0, 0, WINDOW_W, H*2))
+            overlay_dstimg2.OnOverlayUpdated(histogram_green_img, format='rgb', fullscreen=False, window=(WINDOW_W, 0, WINDOW_W, H*2))
+            overlay_dstimg3.OnOverlayUpdated(histogram_blue_img, format='rgb', fullscreen=False, window=(WINDOW_W*2, 0, WINDOW_W, H*2))
 
     except KeyboardInterrupt:
         # Ctrl-C を捕まえた！
